@@ -130,10 +130,10 @@ if __name__ == "__main__":
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=8, shuffle=True)
 
     # Load models
-    vision_encoder, noise_pred_net = load_model(r"C:\Users\asalvi\Downloads\trained_policyV1.pth")
+    vision_encoder, noise_pred_net = load_model(r"C:\Users\asalvi\Downloads\trained_policyV2.pth")
 
     # Run validation
     validate(dataloader, vision_encoder, noise_pred_net,
              num_steps=1000,
-             video_path="denoising_trajectory.mp4",
-             image_path="input_image.png")
+             video_path=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\videos\outputVideos\denoising_trajectory.mp4",
+             image_path=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\videos\outputVideos\input_image.png")

@@ -152,13 +152,32 @@ def train():
 
             # Predict noise
             pred_noise = noise_pred_net(noisy_actions, timestep, local_cond, global_cond)
-
+            
             # Compute loss
-            loss = nn.MSELoss()(pred_noise.squeeze(1), noise)  # ✅ Ensure same shape
+            noise_loss = nn.MSELoss()(pred_noise.squeeze(1), noise)  # ✅ Ensure same shape
+
+            #with torch.no_grad():
+            #    denoised_actions = diffusion_scheduler.step(pred_noise, timestep, noisy_actions).prev_sample
+
+            denoised_actions = []
+            for i in range(noisy_actions.shape[0]):
+                result = diffusion_scheduler.step(
+                    pred_noise[i].unsqueeze(0), 
+                    timestep[i].item(), 
+                    noisy_actions[i].unsqueeze(0)
+                )
+                denoised_actions.append(result.prev_sample)
+
+            denoised_actions = torch.cat(denoised_actions, dim=0)
+
+            lmb = 0.1
+            trajectory_loss = nn.MSELoss()(denoised_actions, actions)
+            
+            total_loss = noise_loss + lmb * trajectory_loss
 
             # Backpropagation
             optimizer.zero_grad()
-            loss.backward()
+            total_loss.backward()
             torch.nn.utils.clip_grad_norm_(noise_pred_net.parameters(), max_norm=1.0)
             optimizer.step()
             
@@ -166,10 +185,10 @@ def train():
             ema.step(noise_pred_net.parameters())  # ✅ Correct EMA update
 
             # Store loss
-            epoch_loss.append(loss.item())
+            epoch_loss.append(total_loss.item())
 
             # ✅ TensorBoard Logging
-            writer.add_scalar("Loss/train", loss.item(), epoch * len(dataloader) + step)
+            writer.add_scalar("Loss/train", total_loss.item(), epoch * len(dataloader) + step)
 
         # Scheduler step
         lr_scheduler.step()
