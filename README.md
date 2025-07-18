@@ -3,7 +3,7 @@ Diffusion based robot navigation for Skid-steered robots
 
 Director Structrue
 
-
+```
 ├───modules (Contains necessary modules to run the training)
 │   │   conv1d.py
 │   │   conv_residual.py
@@ -36,4 +36,8 @@ Director Structrue
     │   validate_v1.py (primary valiation script)
     │
     ├───checkpointsV1
-    └───runs
+    └───runs 
+
+    ```
+
+    

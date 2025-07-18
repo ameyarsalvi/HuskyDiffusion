@@ -28,8 +28,8 @@ def load_model(checkpoint_path="trained_policyV1.pth"):
     noise_pred_net = ConditionalUnet1D(
         input_dim=2,
         local_cond_dim=16,
-        #global_cond_dim=12900, #(if Resnet50 : 2048*25 + 1*25 + 1*25 = 51250) (if Resnet18 : 512*25 + 1*25 + 1*25 = 12850)
-        global_cond_dim=5160,
+        global_cond_dim=5160, #(if Resnet50 : 2048*25 + 1*25 + 1*25 = 51250) (if Resnet18 : 512*25 + 1*25 + 1*25 = 12850)
+        #global_cond_dim=2580,
         diffusion_step_embed_dim=256,
         #down_dims=[256, 512, 1024],
         down_dims=[128, 256, 512],
@@ -48,22 +48,23 @@ def load_model(checkpoint_path="trained_policyV1.pth"):
 # Validation logic
 def validate(dataloader, vision_encoder, noise_pred_net, num_steps=100,
              video_path="denoising_trajectory.mp4", image_path="input_image.png"):
-    
-    #diffusion_scheduler = DDPMScheduler(num_train_timesteps=100)
+
+    # Use config access to avoid deprecation warnings
     diffusion_scheduler = DDPMScheduler(
-    num_train_timesteps=100,
-    beta_schedule="squaredcos_cap_v2"
-)
+        num_train_timesteps=100,
+        beta_schedule="squaredcos_cap_v2"
+    )
+
     batch = next(iter(dataloader))
     idx = np.random.randint(0, batch["images"].shape[0])
 
     # Get sample
-    images = batch["images"][idx].unsqueeze(0).to(device)  # [1, 25, 3, 96, 96]
-    imuV = batch["imu_v"][idx].unsqueeze(0).to(device).float()  # [1, 25]
-    imuOmg = batch["imu_omg"][idx].unsqueeze(0).to(device).float()  # [1, 25]
-    posX = batch["posX"][idx].unsqueeze(0).to(device).float()  # [1, 25]
-    posY = batch["posY"][idx].unsqueeze(0).to(device).float()  # [1, 25]
-    true_actions = batch["actions"][idx].cpu().numpy()  # [100, 2]
+    images = batch["images"][idx].unsqueeze(0).to(device)         # [1, 25, 3, 96, 96]
+    imuV = batch["imu_v"][idx].unsqueeze(0).to(device).float()    # [1, 25]
+    imuOmg = batch["imu_omg"][idx].unsqueeze(0).to(device).float()
+    posX = batch["posX"][idx].unsqueeze(0).to(device).float()
+    posY = batch["posY"][idx].unsqueeze(0).to(device).float()
+    true_velocities = batch["actions"][idx].cpu().numpy()         # [100, 2] = (V, ω)
 
     # Save input image (first frame)
     image_first = to_pil_image(images[0, 0].cpu() * 0.5 + 0.5)
@@ -77,46 +78,62 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps=100,
         img_feats = vision_encoder(images_reshaped)  # [B*T, F]
         img_feats = img_feats.view(B, T, -1)          # [B, T, F]
 
+    # Global conditioning
     imuV = imuV.unsqueeze(-1)
     imuOmg = imuOmg.unsqueeze(-1)
     posX = posX.unsqueeze(-1)
     posY = posY.unsqueeze(-1)
     global_cond = torch.cat([img_feats, imuV, imuOmg, posX, posY], dim=-1).flatten(start_dim=1)  # [B, T*(F+4)]
 
-    # Initialize noisy trajectory
-    timestep = torch.full((1,), diffusion_scheduler.num_train_timesteps - 1, dtype=torch.long, device=device)
-    init_noise = torch.randn_like(batch["actions"][idx].unsqueeze(0)).to(device)  # large initial noise
-    noisy_actions = diffusion_scheduler.add_noise(batch["actions"][idx].unsqueeze(0).to(device), init_noise, timestep)
-    denoised_actions = noisy_actions.clone()
+    # Initialize noisy velocity
+    timestep = torch.full((1,), diffusion_scheduler.config.num_train_timesteps - 1, dtype=torch.long, device=device)
+    init_noise = torch.randn_like(batch["actions"][idx].unsqueeze(0)).to(device)
+    noisy_velocities = diffusion_scheduler.add_noise(batch["actions"][idx].unsqueeze(0).to(device), init_noise, timestep)
+    denoised_velocities = noisy_velocities.clone()
 
-    # Plot
-    fig, ax = plt.subplots(figsize=(6, 6))
-    ax.set_xlim(-5, 5)
-    ax.set_ylim(-5, 5)
-    ax.set_title("Denoising Trajectory")
-    ax.set_xlabel("X")
-    ax.set_ylabel("Y")
+    # Plot setup
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
+    ax1.set_title("Linear Velocity (V) over Sequence")
+    ax1.set_xlabel("Timestep")
+    ax1.set_ylabel("V (m/s)")
+    ax1.set_xlim(0, true_velocities.shape[0])
+    ax1.set_ylim(-2.5, 2.5)
 
-    true_plot, = ax.plot(true_actions[:, 0], true_actions[:, 1], "go", label="True", linestyle="none")
-    noisy_plot, = ax.plot([], [], "ro", label="Noisy", linestyle="none")
-    denoised_plot, = ax.plot([], [], "bo", label="Denoised", linestyle="none")
-    ax.legend()
+    ax2.set_title("Angular Velocity (ω) over Sequence")
+    ax2.set_xlabel("Timestep")
+    ax2.set_ylabel("ω (rad/s)")
+    ax2.set_xlim(0, true_velocities.shape[0])
+    ax2.set_ylim(-2.5, 2.5)
+
+    timesteps = np.arange(true_velocities.shape[0])
+    ax1.plot(timesteps, true_velocities[:, 0], "g-", label="True V")
+    ax2.plot(timesteps, true_velocities[:, 1], "g-", label="True ω")
+    noisy_v_plot, = ax1.plot([], [], "r--", label="Noisy V")
+    denoised_v_plot, = ax1.plot([], [], "b-", label="Denoised V")
+    noisy_omg_plot, = ax2.plot([], [], "r--", label="Noisy ω")
+    denoised_omg_plot, = ax2.plot([], [], "b-", label="Denoised ω")
+
+    ax1.legend()
+    ax2.legend()
 
     def update(step):
-        nonlocal denoised_actions
-        t = torch.full((1,), diffusion_scheduler.num_train_timesteps - step - 1, dtype=torch.long, device=device)
+        nonlocal denoised_velocities
+        t = torch.full((1,), diffusion_scheduler.config.num_train_timesteps - step - 1, dtype=torch.long, device=device)
         with torch.no_grad():
-            pred = noise_pred_net(denoised_actions, t, None, global_cond)
-            denoised_actions = diffusion_scheduler.step(pred, t, denoised_actions).prev_sample
+            pred = noise_pred_net(denoised_velocities, t, None, global_cond)
+            denoised_velocities = diffusion_scheduler.step(pred, t, denoised_velocities).prev_sample
 
-        noisy_np = noisy_actions.view(-1, 2).cpu().numpy()
-        denoised_np = denoised_actions.view(-1, 2).detach().cpu().numpy()
+        noisy_np = noisy_velocities.view(-1, 2).cpu().numpy()
+        denoised_np = denoised_velocities.view(-1, 2).detach().cpu().numpy()
 
-        noisy_plot.set_data(noisy_np[:, 0], noisy_np[:, 1])
-        denoised_plot.set_data(denoised_np[:, 0], denoised_np[:, 1])
-        return denoised_plot, noisy_plot
+        noisy_v_plot.set_data(timesteps, noisy_np[:, 0])
+        denoised_v_plot.set_data(timesteps, denoised_np[:, 0])
+        noisy_omg_plot.set_data(timesteps, noisy_np[:, 1])
+        denoised_omg_plot.set_data(timesteps, denoised_np[:, 1])
 
-    writer = FFMpegWriter(fps=5, metadata=dict(title="Denoising Trajectory"))
+        return denoised_v_plot, noisy_v_plot, denoised_omg_plot, noisy_omg_plot
+
+    writer = FFMpegWriter(fps=5, metadata=dict(title="Denoising Velocities"))
     with writer.saving(fig, video_path, dpi=100):
         for step in tqdm(range(num_steps)):
             update(step)
@@ -124,24 +141,6 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps=100,
 
     plt.close(fig)
     print(f"Saved video at {video_path}")
-
-        # Final plot (static image of true vs denoised trajectory)
-    final_denoised_np = denoised_actions.view(-1, 2).detach().cpu().numpy()
-
-    plt.figure(figsize=(8, 8))
-    plt.plot(true_actions[:, 0], true_actions[:, 1], 'go-', label="True Trajectory")
-    plt.plot(final_denoised_np[:, 0], final_denoised_np[:, 1], 'bo-', label="Denoised Trajectory")
-    plt.title("Final Denoised vs True Trajectory")
-    plt.xlabel("X")
-    plt.ylabel("Y")
-    plt.xlim(-2, 2)
-    plt.ylim(-2, 2)
-    plt.grid(True)
-    plt.legend()
-    final_plot_path = os.path.splitext(video_path)[0] + "_final.jpg"
-    plt.savefig(final_plot_path, dpi=200)
-    plt.close()
-    print(f"Saved final trajectory plot at {final_plot_path}")
 
 
 

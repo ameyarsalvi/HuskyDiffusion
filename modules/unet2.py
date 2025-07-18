@@ -20,7 +20,8 @@ class ConditionalUnet1D(nn.Module):
         local_cond_dim=None,
         global_cond_dim=None,
         diffusion_step_embed_dim=256,
-        down_dims=[256,512,1024],
+        #down_dims=[256,512,1024],
+        down_dims=[64,128,256],
         kernel_size=3,
         n_groups=8,
         cond_predict_scale=False

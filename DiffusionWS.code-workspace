@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"name": "diffusion_policy",
+			"path": "../TRI-Diffusion/diffusion_policy"
+		}
+	],
+	"settings": {}
+}

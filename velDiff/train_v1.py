@@ -12,6 +12,7 @@ from torchvision import models
 from PIL import Image
 import pandas as pd
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
+from diffusers import DDPMScheduler
 from diffusers.training_utils import EMAModel
 from tqdm.auto import tqdm
 import numpy as np
@@ -39,7 +40,12 @@ DDPMScheduler : Provides the relation between nth timestep and the amount of noi
 to be added to the image/action/label at that time step. The noise value thus becomes our "truth"
 over which optimization happens
 '''
-diffusion_scheduler = DDPMScheduler(num_train_timesteps=1000)
+#diffusion_scheduler = DDPMScheduler(num_train_timesteps=100)
+
+diffusion_scheduler = DDPMScheduler(
+    num_train_timesteps=100,
+    beta_schedule="squaredcos_cap_v2"
+)
 
 ### Save Checkpoints and Final Model
 SAVE_DIR = "checkpointsV1"
@@ -55,7 +61,7 @@ def save_checkpoint(epoch, model, ema_model, optimizer, save_dir=SAVE_DIR):
     }, checkpoint_path)
     print(f"Checkpoint saved: {checkpoint_path}")
 
-def save_final_model(model, ema_model, vision_encoder, save_path="trained_policyV1.pth"):
+def save_final_model(model, ema_model, vision_encoder, save_path="trained_policyV1_pos.pth"):
     torch.save({
         'model_state_dict': model.state_dict(),
         'ema_model_state_dict': ema_model.state_dict(),
@@ -76,19 +82,20 @@ def train():
 
     '''
     dataset = CustomDataset(
-        csv_file=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\csv_files\TSyn_data_filtered.csv",
+        #csv_file=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\csv_files\TSyn_data_filtered.csv",
+        csv_file=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset.csv",
         image_transform=transforms.Compose([
             transforms.Resize((96, 96)),
             transforms.ToTensor(),
             transforms.Normalize([0.5]*3, [0.5]*3)
         ]),
-        input_seq=25, output_seq=100
+        input_seq=10, output_seq=16
     )
-    dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
-    vision_encoder = get_resnet50().to(device)
-    for param in vision_encoder.parameters():
-        param.requires_grad = False
+    vision_encoder = get_resnet18().to(device)
+    #for param in vision_encoder.parameters():
+    #    param.requires_grad = False
 
 
     '''
@@ -104,17 +111,22 @@ def train():
     noise_pred_net = ConditionalUnet1D(
         input_dim=2,
         local_cond_dim=16,
-        global_cond_dim=51250, #(if Resnet50 : 2048*25 + 1*25 + 1*25 = 51250) (if Resnet18 : 512*25 + 1*25 + 1*25 = 12850)
+        #global_cond_dim=12900, #(if Resnet50 : 2048*25 + 1*25 + 1*25 = 51250) (if Resnet18 : 512*25 + 1*25 + 1*25 + 1*25 + 1*25 = 12850)
+        #global_cond_dim=2580, #(if Resnet50 : 2048*25 + 1*25 + 1*25 = 51250) (if Resnet18 : 512*25 + 1*25 + 1*25 + 1*25 + 1*25 = 12850)
+        global_cond_dim=5160,
         diffusion_step_embed_dim=256,
-        down_dims=[256, 512, 1024],
+        #down_dims=[256, 512, 1024],
+        down_dims=[128, 256, 512],
         kernel_size=3,
         n_groups=8).to(device)
 
     # A decay parameter to smoothly update model weights
     ema = EMAModel(parameters=noise_pred_net.parameters())
 
-    num_epochs = 10
-    optimizer = torch.optim.AdamW(noise_pred_net.parameters(), lr=1e-5, weight_decay=1e-2)
+    num_epochs = 25
+    #optimizer = torch.optim.AdamW(noise_pred_net.parameters(), lr=1e-5, weight_decay=1e-2)
+    params = list(noise_pred_net.parameters()) + list(vision_encoder.parameters())
+    optimizer = torch.optim.AdamW(params, lr=1e-5, weight_decay=1e-2)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
 
 
@@ -126,6 +138,8 @@ def train():
             images = batch["images"].to(device)    # (64, 25, 3, 96, 96)
             imuV = batch['imu_v'].to(device).float()      # (64, 25)
             imuOmg = batch['imu_omg'].to(device).float()  # (64, 25)
+            posX = batch['posX'].to(device).float()      # (64, 25)
+            posY = batch['posY'].to(device).float()  # (64, 25)
             actions = batch["actions"].to(device).float() # (64, 100, 2)
 
             ### Encode Image features 
@@ -136,9 +150,11 @@ def train():
 
             imuV = imuV.unsqueeze(-1)      # [B, T, 1]
             imuOmg = imuOmg.unsqueeze(-1)  # [B, T, 1]
+            posX = posX.unsqueeze(-1)      # [B, T, 1]
+            posY = posY.unsqueeze(-1)  # [B, T, 1]
 
-            global_cond = torch.cat([image_features, imuV, imuOmg], dim=-1)  # [B, T, F+2]
-            global_cond = global_cond.flatten(start_dim=1).to(dtype=torch.float32, device = device)  # [B, T*(F+2)]
+            global_cond = torch.cat([image_features, imuV, imuOmg, posX, posY], dim=-1)  # [B, T, F+4]
+            global_cond = global_cond.flatten(start_dim=1).to(dtype=torch.float32, device = device)  # [B, T*(F+4)]
 
             local_cond = None
 
@@ -170,7 +186,7 @@ def train():
 
             denoised_actions = torch.cat(denoised_actions, dim=0)
 
-            lmb = 0.1
+            lmb = 0.0
             trajectory_loss = nn.MSELoss()(denoised_actions, actions)
             
             total_loss = noise_loss + lmb * trajectory_loss
