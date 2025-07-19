@@ -19,6 +19,7 @@ import numpy as np
 import math
 import os
 
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 from torch.utils.tensorboard import SummaryWriter
@@ -123,7 +124,7 @@ def train():
     # A decay parameter to smoothly update model weights
     ema = EMAModel(parameters=noise_pred_net.parameters())
 
-    num_epochs = 25
+    num_epochs = 50
     #optimizer = torch.optim.AdamW(noise_pred_net.parameters(), lr=1e-5, weight_decay=1e-2)
     params = list(noise_pred_net.parameters()) + list(vision_encoder.parameters())
     optimizer = torch.optim.AdamW(params, lr=1e-5, weight_decay=1e-2)
