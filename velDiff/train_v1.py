@@ -33,7 +33,7 @@ sys.path.insert(0,"C:/Users/asalvi/Documents/Ameya_workspace/DiffusionDataset/Co
 ### Import Diffusion Modules
 from modules.resnet import get_resnet50
 from modules.resnet import get_resnet18
-from modules.dataset import CustomDataset
+from modules.datasetv2 import CustomDataset
 from modules.unet2 import ConditionalUnet1D  # Import Conv1D module
 
 '''
@@ -62,7 +62,7 @@ def save_checkpoint(epoch, model, ema_model, optimizer, save_dir=SAVE_DIR):
     }, checkpoint_path)
     print(f"Checkpoint saved: {checkpoint_path}")
 
-def save_final_model(model, ema_model, vision_encoder, save_path="trained_policyV1_pos.pth"):
+def save_final_model(model, ema_model, vision_encoder, save_path="policy_act_norm.pth"):
     torch.save({
         'model_state_dict': model.state_dict(),
         'ema_model_state_dict': ema_model.state_dict(),
@@ -90,9 +90,9 @@ def train():
             transforms.ToTensor(),
             transforms.Normalize([0.5]*3, [0.5]*3)
         ]),
-        input_seq=10, output_seq=16
+        input_seq=2, output_seq=16
     )
-    dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=16, shuffle=True)
 
     vision_encoder = get_resnet18().to(device)
     #for param in vision_encoder.parameters():
@@ -107,14 +107,14 @@ def train():
         down_dims=[256, 512, 1024] : Downmoudules, standard,
         kernel_size= KS for Conv1D blocks in ConvResNet,
         n_groups=groups for Conv1D blocks in ConvResNet
-        '''
+    '''
     
     noise_pred_net = ConditionalUnet1D(
         input_dim=2,
         local_cond_dim=16,
         #global_cond_dim=12900, #(if Resnet50 : 2048*25 + 1*25 + 1*25 = 51250) (if Resnet18 : 512*25 + 1*25 + 1*25 + 1*25 + 1*25 = 12850)
         #global_cond_dim=2580, #(if Resnet50 : 2048*25 + 1*25 + 1*25 = 51250) (if Resnet18 : 512*25 + 1*25 + 1*25 + 1*25 + 1*25 = 12850)
-        global_cond_dim=5160,
+        global_cond_dim=2*(512+1+1+1+1),
         diffusion_step_embed_dim=256,
         #down_dims=[256, 512, 1024],
         down_dims=[128, 256, 512],
@@ -124,7 +124,7 @@ def train():
     # A decay parameter to smoothly update model weights
     ema = EMAModel(parameters=noise_pred_net.parameters())
 
-    num_epochs = 50
+    num_epochs = 100
     #optimizer = torch.optim.AdamW(noise_pred_net.parameters(), lr=1e-5, weight_decay=1e-2)
     params = list(noise_pred_net.parameters()) + list(vision_encoder.parameters())
     optimizer = torch.optim.AdamW(params, lr=1e-5, weight_decay=1e-2)
@@ -163,7 +163,7 @@ def train():
             timestep = torch.randint(0, diffusion_scheduler.config.num_train_timesteps, (actions.size(0),), device=device)
 
             # Generate noise
-            noise = torch.randn_like(actions, device=device)
+            noise = 5*torch.randn_like(actions, device=device)
             # Add noise using DDPM method
             noisy_actions = diffusion_scheduler.add_noise(actions, noise, timestep)
 

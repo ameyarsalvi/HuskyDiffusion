@@ -1,3 +1,8 @@
+'''
+Validation Code for action : Position (X-Y)
+
+'''
+
 import torch
 import torchvision.transforms
 import numpy as np
@@ -14,7 +19,7 @@ sys.path.insert(0,"C:/Users/asalvi/Documents/Ameya_workspace/DiffusionDataset/Co
 # Import modules
 from modules.resnet import get_resnet50
 from modules.resnet import get_resnet18
-from modules.dataset import CustomDataset
+from modules.datasetv2 import CustomDataset
 from modules.unet2 import ConditionalUnet1D
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 
@@ -29,7 +34,7 @@ def load_model(checkpoint_path="trained_policyV1.pth"):
         input_dim=2,
         local_cond_dim=16,
         #global_cond_dim=12900, #(if Resnet50 : 2048*25 + 1*25 + 1*25 = 51250) (if Resnet18 : 512*25 + 1*25 + 1*25 = 12850)
-        global_cond_dim=5160,
+        global_cond_dim=2*(512+1+1+1+1),
         diffusion_step_embed_dim=256,
         #down_dims=[256, 512, 1024],
         down_dims=[128, 256, 512],
@@ -75,7 +80,7 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps=100,
     images_reshaped = images.view(B * T, C, H, W)
     with torch.no_grad():
         img_feats = vision_encoder(images_reshaped)  # [B*T, F]
-        img_feats = img_feats.view(B, T, -1)          # [B, T, F]
+        img_feats = img_feats.view(B, T, -1)         # [B, T, F]
 
     imuV = imuV.unsqueeze(-1)
     imuOmg = imuOmg.unsqueeze(-1)
@@ -85,14 +90,15 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps=100,
 
     # Initialize noisy trajectory
     timestep = torch.full((1,), diffusion_scheduler.num_train_timesteps - 1, dtype=torch.long, device=device)
-    init_noise = torch.randn_like(batch["actions"][idx].unsqueeze(0)).to(device)  # large initial noise
+    init_noise = 5*torch.randn_like(batch["actions"][idx].unsqueeze(0)).to(device)  # large initial noise
     noisy_actions = diffusion_scheduler.add_noise(batch["actions"][idx].unsqueeze(0).to(device), init_noise, timestep)
     denoised_actions = noisy_actions.clone()
 
+    
     # Plot
     fig, ax = plt.subplots(figsize=(6, 6))
-    ax.set_xlim(-5, 5)
-    ax.set_ylim(-5, 5)
+    ax.set_xlim(-2.5, 2.5)
+    ax.set_ylim(-2.5, 2.5)
     ax.set_title("Denoising Trajectory")
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
@@ -124,6 +130,7 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps=100,
 
     plt.close(fig)
     print(f"Saved video at {video_path}")
+    
 
         # Final plot (static image of true vs denoised trajectory)
     final_denoised_np = denoised_actions.view(-1, 2).detach().cpu().numpy()
@@ -134,8 +141,8 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps=100,
     plt.title("Final Denoised vs True Trajectory")
     plt.xlabel("X")
     plt.ylabel("Y")
-    plt.xlim(-2, 2)
-    plt.ylim(-2, 2)
+    plt.xlim(-2.5, 2.5)
+    plt.ylim(-2.5, 2.5)
     plt.grid(True)
     plt.legend()
     final_plot_path = os.path.splitext(video_path)[0] + "_final.jpg"
@@ -155,12 +162,12 @@ if __name__ == "__main__":
             torchvision.transforms.ToTensor(),
             torchvision.transforms.Normalize([0.5]*3, [0.5]*3),
         ]),
-        input_seq=10, output_seq=16
+        input_seq=2, output_seq=16
     )
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=8, shuffle=True)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=16, shuffle=True)
 
     # Load models
-    vision_encoder, noise_pred_net = load_model(r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\trained_policyV1_pos.pth")
+    vision_encoder, noise_pred_net = load_model(r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\training\velDiff\policy_act_norm.pth")
 
     # Run validation
     validate(dataloader, vision_encoder, noise_pred_net,

@@ -1,3 +1,8 @@
+'''
+Validation Code for action : Velocity (V-omg)
+
+'''
+
 import torch
 import torchvision.transforms
 import numpy as np

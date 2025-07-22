@@ -1,0 +1,20 @@
+# Creating a list of all the params
+
+
+#1. Path of directory for logging tensorboard details [str]
+#2. Syspath --> where all the modules are located and can be loaded [str]
+#3. Diffusion Scheduler
+    # Type of schedulere [str]
+    # Number of steps of the scheduler [int]
+#4. Directory to save checkpoints [str]
+#5. Directory to save final model [str]
+#6. Path to training dataset (CSV file that will be used by the dataset module) [str]
+#7. Input sequence length [int]
+#8. Output sequence length [int]
+#9. Choice of vision encoder (resnet18 vs resnet50) [str]
+#10. Choice of global conditions [dict]
+    # Options : Images, IMU_v, IMU_omg, odom_posX, odom_posY
+#11. Choice of actions [dict]
+    # Position, Velocity
+#12. global_cond_dim = input_seq_len*(512(or 2048 for resnet50) + len([dict-global conds]) - 1)
+#13.  
