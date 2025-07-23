@@ -28,6 +28,7 @@ writer = SummaryWriter(log_dir="runs/diffusion_training")
 #Import all the modules here
 import sys
 sys.path.insert(0,"C:/Users/asalvi/Documents/Ameya_workspace/DiffusionDataset/ConeCamAngEst/training/")
+sys.path.insert(0,r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset\cone_path_real")
 
 
 ### Import Diffusion Modules
@@ -84,7 +85,8 @@ def train():
     '''
     dataset = CustomDataset(
         #csv_file=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\csv_files\TSyn_data_filtered.csv",
-        csv_file=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset.csv",
+        csv_file=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset\cone_path_sim\modular_data.csv",
+        base_dir = r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset\cone_path_sim",
         image_transform=transforms.Compose([
             transforms.Resize((96, 96)),
             transforms.ToTensor(),
