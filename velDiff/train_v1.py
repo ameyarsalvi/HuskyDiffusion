@@ -28,7 +28,6 @@ writer = SummaryWriter(log_dir="runs/diffusion_training")
 #Import all the modules here
 import sys
 sys.path.insert(0,"C:/Users/asalvi/Documents/Ameya_workspace/DiffusionDataset/ConeCamAngEst/training/")
-sys.path.insert(0,r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset\cone_path_real")
 
 
 ### Import Diffusion Modules
@@ -50,7 +49,7 @@ diffusion_scheduler = DDPMScheduler(
 )
 
 ### Save Checkpoints and Final Model
-SAVE_DIR = "checkpointsV1"
+SAVE_DIR = r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\checkpointsV1"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 def save_checkpoint(epoch, model, ema_model, optimizer, save_dir=SAVE_DIR):
@@ -63,7 +62,9 @@ def save_checkpoint(epoch, model, ema_model, optimizer, save_dir=SAVE_DIR):
     }, checkpoint_path)
     print(f"Checkpoint saved: {checkpoint_path}")
 
-def save_final_model(model, ema_model, vision_encoder, save_path="policy_act_norm.pth"):
+save_policy_path = r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\policies"
+os.makedirs(save_policy_path, exist_ok=True)
+def save_final_model(model, ema_model, vision_encoder, save_path= os.path.join(save_policy_path, "cone_sim.pth")):
     torch.save({
         'model_state_dict': model.state_dict(),
         'ema_model_state_dict': ema_model.state_dict(),
@@ -125,6 +126,14 @@ def train():
 
     # A decay parameter to smoothly update model weights
     ema = EMAModel(parameters=noise_pred_net.parameters())
+
+    '''
+    ema = EMAModel(
+    parameters=noise_pred_net.parameters(),
+    power=0.75,           # controls warmup behavior (optional)
+    decay=0.9          # default 
+    )
+    '''
 
     num_epochs = 100
     #optimizer = torch.optim.AdamW(noise_pred_net.parameters(), lr=1e-5, weight_decay=1e-2)

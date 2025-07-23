@@ -97,8 +97,8 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps=100,
     
     # Plot
     fig, ax = plt.subplots(figsize=(6, 6))
-    ax.set_xlim(-2.5, 2.5)
-    ax.set_ylim(-2.5, 2.5)
+    ax.set_xlim(-5, 5)
+    ax.set_ylim(-5, 5)
     ax.set_title("Denoising Trajectory")
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
@@ -141,8 +141,8 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps=100,
     plt.title("Final Denoised vs True Trajectory")
     plt.xlabel("X")
     plt.ylabel("Y")
-    plt.xlim(-2.5, 2.5)
-    plt.ylim(-2.5, 2.5)
+    plt.xlim(-5, 5)
+    plt.ylim(-5, 5)
     plt.grid(True)
     plt.legend()
     final_plot_path = os.path.splitext(video_path)[0] + "_final.jpg"
@@ -155,8 +155,8 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps=100,
 if __name__ == "__main__":
     # Load dataset
     dataset = CustomDataset(
-        #csv_file=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\csv_files\TSyn_data_filtered.csv",
-        csv_file=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset.csv",
+        csv_file=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset\cone_path_sim\modular_data.csv",
+        base_dir = r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset\cone_path_sim",
         image_transform=torchvision.transforms.Compose([
             torchvision.transforms.Resize((96, 96)),
             torchvision.transforms.ToTensor(),
@@ -167,10 +167,10 @@ if __name__ == "__main__":
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=16, shuffle=True)
 
     # Load models
-    vision_encoder, noise_pred_net = load_model(r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\training\velDiff\policy_act_norm.pth")
+    vision_encoder, noise_pred_net = load_model(r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\policies\cone_sim.pth")
 
     # Run validation
     validate(dataloader, vision_encoder, noise_pred_net,
              num_steps=100,
-             video_path=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\videos\outputVideos\denoising_trajectory.mp4",
-             image_path=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\videos\outputVideos\input_image.png")
+             video_path=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\videos\outputVideos\denoising_trajectory_sim.mp4",
+             image_path=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\videos\outputVideos\input_image_sim.png")
