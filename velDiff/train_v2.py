@@ -33,7 +33,7 @@ sys.path.insert(0,"C:/Users/asalvi/Documents/Ameya_workspace/DiffusionDataset/Co
 ### Import Diffusion Modules
 from modules.resnet import get_resnet50
 from modules.resnet import get_resnet18
-from modules.datasetv2 import CustomDataset
+from modules.datasetv3 import CustomDataset
 from modules.unet2 import ConditionalUnet1D  # Import Conv1D module
 
 '''
@@ -64,7 +64,7 @@ def save_checkpoint(epoch, model, ema_model, optimizer, save_dir=SAVE_DIR):
 
 save_policy_path = r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\policies"
 os.makedirs(save_policy_path, exist_ok=True)
-def save_final_model(model, ema_model, vision_encoder, save_path= os.path.join(save_policy_path, "cone_sim.pth")):
+def save_final_model(model, ema_model, vision_encoder, save_path= os.path.join(save_policy_path, "cone_sim_vel.pth")):
     torch.save({
         'model_state_dict': model.state_dict(),
         'ema_model_state_dict': ema_model.state_dict(),
@@ -96,7 +96,7 @@ def train():
         ]),
         input_seq=2, output_seq=16
     )
-    dataloader = DataLoader(dataset, batch_size=16, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
 
     vision_encoder = get_resnet18().to(device)
     #for param in vision_encoder.parameters():
@@ -118,7 +118,7 @@ def train():
         local_cond_dim=16,
         #global_cond_dim=12900, #(if Resnet50 : 2048*25 + 1*25 + 1*25 = 51250) (if Resnet18 : 512*25 + 1*25 + 1*25 + 1*25 + 1*25 = 12850)
         #global_cond_dim=2580, #(if Resnet50 : 2048*25 + 1*25 + 1*25 = 51250) (if Resnet18 : 512*25 + 1*25 + 1*25 + 1*25 + 1*25 = 12850)
-        global_cond_dim=2*(512+1+1+1+1),
+        global_cond_dim=2*(512+1+1),
         diffusion_step_embed_dim=256,
         #down_dims=[256, 512, 1024],
         down_dims=[128, 256, 512],
@@ -136,7 +136,7 @@ def train():
     )
     '''
 
-    num_epochs = 100
+    num_epochs = 25
     #optimizer = torch.optim.AdamW(noise_pred_net.parameters(), lr=1e-5, weight_decay=1e-2)
     params = list(noise_pred_net.parameters()) + list(vision_encoder.parameters())
     optimizer = torch.optim.AdamW(params, lr=1e-5, weight_decay=1e-2)
@@ -149,8 +149,6 @@ def train():
         for step, batch in enumerate(tqdm(dataloader, desc=f"Epoch {epoch+1}/{num_epochs}")):
             ### Sample data from dataloader (batchsize x data_dims)
             images = batch["images"].to(device)    # (64, 25, 3, 96, 96)
-            imuV = batch['imu_v'].to(device).float()      # (64, 25)
-            imuOmg = batch['imu_omg'].to(device).float()  # (64, 25)
             posX = batch['posX'].to(device).float()      # (64, 25)
             posY = batch['posY'].to(device).float()  # (64, 25)
             actions = batch["actions"].to(device).float() # (64, 100, 2)
@@ -161,12 +159,11 @@ def train():
             image_features = vision_encoder(images)
             image_features = image_features.view(B, T, -1)
 
-            imuV = imuV.unsqueeze(-1)      # [B, T, 1]
-            imuOmg = imuOmg.unsqueeze(-1)  # [B, T, 1]
+
             posX = posX.unsqueeze(-1)      # [B, T, 1]
             posY = posY.unsqueeze(-1)  # [B, T, 1]
 
-            global_cond = torch.cat([image_features, imuV, imuOmg, posX, posY], dim=-1)  # [B, T, F+4]
+            global_cond = torch.cat([image_features, posX, posY], dim=-1)  # [B, T, F+4]
             global_cond = global_cond.flatten(start_dim=1).to(dtype=torch.float32, device = device)  # [B, T*(F+4)]
 
             local_cond = None
@@ -175,7 +172,7 @@ def train():
             timestep = torch.randint(0, diffusion_scheduler.config.num_train_timesteps, (actions.size(0),), device=device)
 
             # Generate noise
-            noise = 5*torch.randn_like(actions, device=device)
+            noise = torch.randn_like(actions, device=device)
             # Add noise using DDPM method
             noisy_actions = diffusion_scheduler.add_noise(actions, noise, timestep)
 
@@ -199,7 +196,7 @@ def train():
 
             denoised_actions = torch.cat(denoised_actions, dim=0)
 
-            lmb = 0.1
+            lmb = 0.0
             trajectory_loss = nn.MSELoss()(denoised_actions, actions)
             
             total_loss = noise_loss + lmb * trajectory_loss

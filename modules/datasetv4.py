@@ -10,7 +10,7 @@ class CustomDataset(Dataset):
     def __init__(self, csv_file, base_dir, image_transform=None, input_seq=25, output_seq=100):
         super().__init__()
         self.raw_data = pd.read_csv(csv_file)
-        self.data = self.raw_data.iloc[::10].reset_index(drop=True)  # Step 1: Subsample every 5th row
+        self.data = self.raw_data  
         self.image_transform = image_transform
         self.input_seq = input_seq
         self.output_seq = output_seq
@@ -24,15 +24,16 @@ class CustomDataset(Dataset):
         output_rows = self.data.iloc[idx + self.input_seq : idx + self.input_seq + self.output_seq]
 
         # Image & IMU input sequence
-        image_paths = input_rows['fix_img_path'].tolist()
-        IMU_v = input_rows['cmd_v'].values #using cmd_v
-        IMU_omg = input_rows['cmd_omg'].values  #using cmd_omg
-        pos_x = input_rows['pose_X'].values
-        pos_y = input_rows['pose_Y'].values
+        image_paths = input_rows['image'].tolist()
+        imu_v = input_rows['IMU_v'].values
+        imu_omg = input_rows['IMU_omg'].values
+        wheel_l = input_rows['wheel_L'].values
+        wheel_r = input_rows['wheel_R'].values
+
 
         # Output sequence (future trajectory)
-        pos_x_out = output_rows['pose_X'].values
-        pos_y_out = output_rows['pose_Y'].values
+        cmd_l = output_rows['wheel_L'].values
+        cmd_r = output_rows['wheel_R'].values
 
         # Load and transform image sequence
         image_sequence = []
@@ -45,21 +46,17 @@ class CustomDataset(Dataset):
 
         image_sequence = torch.stack(image_sequence, dim=0)  # shape: (T, C, H, W)
 
-        # Normalize output trajectory relative to the first output pose
-
-        pos_x_normalized = pos_x_out - 0*pos_x_out[0]
-        pos_y_normalized = pos_y_out - 0*pos_y_out[0]
 
         actions = torch.tensor(
-            np.stack((pos_x_normalized, pos_y_normalized), axis=-1),
+            np.stack((cmd_l, cmd_r), axis=-1),
             dtype=torch.float32
         )
 
         return {
             'images': image_sequence,              # (input_seq, C, H, W)
-            'imu_v': torch.tensor(IMU_v),          # (input_seq,)
-            'imu_omg': torch.tensor(IMU_omg),      # (input_seq,)
-            'posX': torch.tensor(pos_x),           # (input_seq,)
-            'posY': torch.tensor(pos_y),           # (input_seq,)
+            'imu_v': torch.tensor(imu_v),           # (input_seq,)
+            'imu_omg': torch.tensor(imu_omg),           # (input_seq,)
+            'wheel_L': torch.tensor(wheel_l),       # (input_seq,)
+            'wheel_R': torch.tensor(wheel_r),       # (input_seq,)
             'actions': actions                     # (output_seq, 2)
         }

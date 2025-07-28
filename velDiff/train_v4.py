@@ -33,7 +33,7 @@ sys.path.insert(0,"C:/Users/asalvi/Documents/Ameya_workspace/DiffusionDataset/Co
 ### Import Diffusion Modules
 from modules.resnet import get_resnet50
 from modules.resnet import get_resnet18
-from modules.datasetv2 import CustomDataset
+from modules.datasetv4 import CustomDataset
 from modules.unet2 import ConditionalUnet1D  # Import Conv1D module
 
 '''
@@ -48,7 +48,7 @@ diffusion_scheduler = DDPMScheduler(
     beta_schedule="squaredcos_cap_v2"
 )
 
-### Save Checkpoints and Final Model
+
 SAVE_DIR = r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\checkpointsV1"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
@@ -64,7 +64,7 @@ def save_checkpoint(epoch, model, ema_model, optimizer, save_dir=SAVE_DIR):
 
 save_policy_path = r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\policies"
 os.makedirs(save_policy_path, exist_ok=True)
-def save_final_model(model, ema_model, vision_encoder, save_path= os.path.join(save_policy_path, "cone_sim.pth")):
+def save_final_model(model, ema_model, vision_encoder, save_path= os.path.join(save_policy_path, "cone_rig.pth")):
     torch.save({
         'model_state_dict': model.state_dict(),
         'ema_model_state_dict': ema_model.state_dict(),
@@ -86,9 +86,10 @@ def train():
     '''
     dataset = CustomDataset(
         #csv_file=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\csv_files\TSyn_data_filtered.csv",
-        csv_file=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset\cone_path_sim\modular_data.csv",
-        base_dir = r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset\cone_path_sim",
+        csv_file=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset\cone_path_drive_rig\modular_cone_rig_data.csv",
+        base_dir = r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset\cone_path_drive_rig",
         image_transform=transforms.Compose([
+            transforms.Lambda(lambda img: transforms.functional.crop(img, top=288, left=0, height=192, width=640)),
             transforms.Resize((96, 96)),
             #transforms.Resize((160, 48)),
             transforms.ToTensor(),
@@ -96,7 +97,7 @@ def train():
         ]),
         input_seq=2, output_seq=16
     )
-    dataloader = DataLoader(dataset, batch_size=16, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
 
     vision_encoder = get_resnet18().to(device)
     #for param in vision_encoder.parameters():
@@ -136,7 +137,7 @@ def train():
     )
     '''
 
-    num_epochs = 100
+    num_epochs = 1
     #optimizer = torch.optim.AdamW(noise_pred_net.parameters(), lr=1e-5, weight_decay=1e-2)
     params = list(noise_pred_net.parameters()) + list(vision_encoder.parameters())
     optimizer = torch.optim.AdamW(params, lr=1e-5, weight_decay=1e-2)
@@ -149,10 +150,10 @@ def train():
         for step, batch in enumerate(tqdm(dataloader, desc=f"Epoch {epoch+1}/{num_epochs}")):
             ### Sample data from dataloader (batchsize x data_dims)
             images = batch["images"].to(device)    # (64, 25, 3, 96, 96)
-            imuV = batch['imu_v'].to(device).float()      # (64, 25)
-            imuOmg = batch['imu_omg'].to(device).float()  # (64, 25)
-            posX = batch['posX'].to(device).float()      # (64, 25)
-            posY = batch['posY'].to(device).float()  # (64, 25)
+            imu_v = batch['imu_v'].to(device).float()      # (64, 25)
+            imu_omg = batch['imu_omg'].to(device).float()  # (64, 25)
+            wheel_L = batch['wheel_L'].to(device).float()  # (64, 25)
+            wheel_R = batch['wheel_R'].to(device).float()  # (64, 25)
             actions = batch["actions"].to(device).float() # (64, 100, 2)
 
             ### Encode Image features 
@@ -161,12 +162,13 @@ def train():
             image_features = vision_encoder(images)
             image_features = image_features.view(B, T, -1)
 
-            imuV = imuV.unsqueeze(-1)      # [B, T, 1]
-            imuOmg = imuOmg.unsqueeze(-1)  # [B, T, 1]
-            posX = posX.unsqueeze(-1)      # [B, T, 1]
-            posY = posY.unsqueeze(-1)  # [B, T, 1]
 
-            global_cond = torch.cat([image_features, imuV, imuOmg, posX, posY], dim=-1)  # [B, T, F+4]
+            imu_v = imu_v.unsqueeze(-1)      # [B, T, 1]
+            imu_omg = imu_omg.unsqueeze(-1)  # [B, T, 1]
+            wheel_L = wheel_L.unsqueeze(-1)      # [B, T, 1]
+            wheel_R = wheel_R.unsqueeze(-1)  # [B, T, 1]
+
+            global_cond = torch.cat([image_features, imu_v, imu_omg, wheel_L, wheel_R], dim=-1)  # [B, T, F+4]
             global_cond = global_cond.flatten(start_dim=1).to(dtype=torch.float32, device = device)  # [B, T*(F+4)]
 
             local_cond = None
@@ -175,7 +177,7 @@ def train():
             timestep = torch.randint(0, diffusion_scheduler.config.num_train_timesteps, (actions.size(0),), device=device)
 
             # Generate noise
-            noise = 5*torch.randn_like(actions, device=device)
+            noise = torch.randn_like(actions, device=device)
             # Add noise using DDPM method
             noisy_actions = diffusion_scheduler.add_noise(actions, noise, timestep)
 
@@ -199,7 +201,7 @@ def train():
 
             denoised_actions = torch.cat(denoised_actions, dim=0)
 
-            lmb = 0.1
+            lmb = 0.0
             trajectory_loss = nn.MSELoss()(denoised_actions, actions)
             
             total_loss = noise_loss + lmb * trajectory_loss
