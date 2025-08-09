@@ -1,9 +1,10 @@
 import pandas as pd
 from pathlib import Path
+import os
 
 dir = r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset\cone_path_drive_rig"
 # Load your original CSV
-csv_path = r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset\cone_path_drive_rig\merged_cone_rig.csv"
+csv_path = r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset\cone_path_drive_rig\merged_output_cone_rig.csv"
 df = pd.read_csv(csv_path)
 
 # Define the base directory where images are stored (relative to dataset root)
@@ -25,5 +26,5 @@ df['mv_img_path'] = df['mv_img_path'].apply(
 '''
 
 # Save the new CSV (modular and cross-platform)
-df.to_csv(dir + "modular_cone_rig_data.csv", index=False)
+df.to_csv(os.path.join(dir,"mod_output_cone_rig.csv"), index=False)
 print("✅ Saved modular path CSV as 'modular_data.csv'")

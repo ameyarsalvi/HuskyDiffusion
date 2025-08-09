@@ -36,13 +36,11 @@ class CustomDataset(Dataset):
 
         # Output sequence (future trajectory)
         #Calibrated 'radius:r' instead of true r
-        cmd_v = (0.1497/2)*(output_rows['wheel_L'].values + output_rows['wheel_R'].values)
-        cmd_v_norm = 2 * ((cmd_v + 0.18) / 1.08) - 1
+        cmd_v = (0.165/2)*(output_rows['wheel_L'].values + output_rows['wheel_R'].values)
         #print(f"cmd_v: {cmd_v_norm}")
         #Calibrated 'wheel base :B' instead of true B
         #Sign flig between wheel_L and wheel_R to match flipped IMU
-        cmd_omg = (0.1497/1.8036)*(1*output_rows['wheel_L'].values - output_rows['wheel_R'].values)
-        cmd_omg_norm = 2 * ((cmd_omg + 0.2) / 0.4) - 1
+        cmd_omg = (0.165/0.555)*(-1*output_rows['wheel_L'].values + output_rows['wheel_R'].values)
         #print(f"cmd_omg: {cmd_omg_norm}")
 
         # Load and transform image sequence
@@ -58,7 +56,7 @@ class CustomDataset(Dataset):
 
 
         actions = torch.tensor(
-            np.stack((cmd_v_norm, cmd_omg_norm), axis=-1),
+            np.stack((cmd_v, cmd_omg), axis=-1),
             dtype=torch.float32
         )
 

@@ -10,6 +10,7 @@ import torchvision.transforms as transforms
 from torch.utils.data import Dataset, DataLoader
 from torchvision import models
 from PIL import Image
+import cv2
 import pandas as pd
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from diffusers import DDPMScheduler
@@ -18,6 +19,7 @@ from tqdm.auto import tqdm
 import numpy as np
 import math
 import os
+import matplotlib.pyplot as plt
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -64,7 +66,7 @@ def save_checkpoint(epoch, model, ema_model, optimizer, save_dir=SAVE_DIR):
 
 save_policy_path = r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\policies"
 os.makedirs(save_policy_path, exist_ok=True)
-def save_final_model(model, ema_model, vision_encoder, save_path= os.path.join(save_policy_path, "cone_rig.pth")):
+def save_final_model(model, ema_model, vision_encoder, save_path= os.path.join(save_policy_path, "cone_rig_norm.pth")):
     torch.save({
         'model_state_dict': model.state_dict(),
         'ema_model_state_dict': ema_model.state_dict(),
@@ -72,6 +74,24 @@ def save_final_model(model, ema_model, vision_encoder, save_path= os.path.join(s
     }, save_path)
     print(f"Final model saved: {save_path}")
 
+
+
+def hsv_threshold_pil(pil_img):
+    # Convert PIL to numpy array (RGB)
+    img_np = np.array(pil_img)
+    img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+    
+    # Convert to HSV and apply threshold
+    hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+    lower_orange = np.array([5, 50, 50])
+    upper_orange = np.array([15, 255, 255])
+    mask = cv2.inRange(hsv, lower_orange, upper_orange)
+    
+    # Convert binary mask to 3-channel grayscale to maintain consistency
+    mask_3ch = cv2.merge([mask, mask, mask])  # shape (H, W, 3)
+    
+    # Convert back to PIL image
+    return Image.fromarray(mask_3ch)
 
 
 ### Training Loop
@@ -86,18 +106,37 @@ def train():
     '''
     dataset = CustomDataset(
         #csv_file=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\csv_files\TSyn_data_filtered.csv",
-        csv_file=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset\cone_path_drive_rig\modular_cone_rig_data.csv",
+        csv_file=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset\cone_path_drive_rig\mod_output_cone_rig.csv",
         base_dir = r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset\cone_path_drive_rig",
         image_transform=transforms.Compose([
-            transforms.Lambda(lambda img: transforms.functional.crop(img, top=288, left=0, height=192, width=640)),
+            #transforms.Lambda(lambda img: transforms.functional.crop(img, top=288, left=0, height=192, width=640)),
             transforms.Resize((96, 96)),
+            transforms.Lambda(hsv_threshold_pil),
             #transforms.Resize((160, 48)),
             transforms.ToTensor(),
             transforms.Normalize([0.5]*3, [0.5]*3)
         ]),
-        input_seq=2, output_seq=16
+        input_seq=2, output_seq=8
     )
-    dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
+
+    
+    #Visualize some images from the dataset
+    print("Visualizing some images from the dataset:")
+    for i in range(2):  # Choose a few samples
+        sample = dataset[i]
+        img_seq = sample['images']  # Shape: [input_seq, C, H, W]
+
+        for t in range(img_seq.shape[0]):  # Loop over sequence
+            img_tensor = img_seq[t]  # Shape: [C, H, W]
+            img = img_tensor.permute(1, 2, 0).numpy() * 0.5 + 0.5  # De-normalize
+            img = np.clip(img, 0, 1)  # Just in case values exceed bounds
+            plt.imshow(img)
+            plt.title(f"Sample {i}, Timestep {t}")
+            plt.axis('off')
+            plt.show()
+    
+
+    dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
     vision_encoder = get_resnet18().to(device)
     #for param in vision_encoder.parameters():
@@ -137,7 +176,7 @@ def train():
     )
     '''
 
-    num_epochs = 1
+    num_epochs = 100
     #optimizer = torch.optim.AdamW(noise_pred_net.parameters(), lr=1e-5, weight_decay=1e-2)
     params = list(noise_pred_net.parameters()) + list(vision_encoder.parameters())
     optimizer = torch.optim.AdamW(params, lr=1e-5, weight_decay=1e-2)

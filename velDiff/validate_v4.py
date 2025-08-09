@@ -12,6 +12,9 @@ from torchvision.transforms.functional import to_pil_image
 from tqdm import tqdm
 import os
 
+import cv2
+from PIL import Image
+
 #Import all the modules here
 import sys
 sys.path.insert(0,"C:/Users/asalvi/Documents/Ameya_workspace/DiffusionDataset/ConeCamAngEst/training/")
@@ -49,6 +52,24 @@ def load_model(checkpoint_path="trained_policyV1.pth"):
     noise_pred_net.eval()
 
     return vision_encoder, noise_pred_net
+
+
+def hsv_threshold_pil(pil_img):
+    # Convert PIL to numpy array (RGB)
+    img_np = np.array(pil_img)
+    img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+    
+    # Convert to HSV and apply threshold
+    hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+    lower_orange = np.array([5, 50, 50])
+    upper_orange = np.array([15, 255, 255])
+    mask = cv2.inRange(hsv, lower_orange, upper_orange)
+    
+    # Convert binary mask to 3-channel grayscale to maintain consistency
+    mask_3ch = cv2.merge([mask, mask, mask])  # shape (H, W, 3)
+    
+    # Convert back to PIL image
+    return Image.fromarray(mask_3ch)
 
 # Validation logic
 def validate(dataloader, vision_encoder, noise_pred_net, num_steps=100,
@@ -101,13 +122,13 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps=100,
     ax1.set_xlabel("Timestep")
     ax1.set_ylabel("ω (rad/s)")
     ax1.set_xlim(0, true_velocities.shape[0])
-    ax1.set_ylim(0, 5)
+    ax1.set_ylim(-1, 1)
 
     ax2.set_title("Right Wheel Velocity (w_R) rad/s over Sequence")
     ax2.set_xlabel("Timestep")
     ax2.set_ylabel("ω (rad/s)")
     ax2.set_xlim(0, true_velocities.shape[0])
-    ax2.set_ylim(0, 5)
+    ax2.set_ylim(-1, 1)
 
     timesteps = np.arange(true_velocities.shape[0])
     ax1.plot(timesteps, true_velocities[:, 0], "g-", label="True V")
@@ -160,7 +181,7 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps=100,
     ax1.set_xlabel("Timestep")
     ax1.set_ylabel("ω (rad/s)")
     ax1.set_xlim(0, true_velocities.shape[0])
-    ax1.set_ylim(0, 5)
+    ax1.set_ylim(-1, 1)
     ax1.grid(True)
     ax1.legend()
 
@@ -171,12 +192,12 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps=100,
     ax2.set_xlabel("Timestep")
     ax2.set_ylabel("ω (rad/s)")
     ax2.set_xlim(0, true_velocities.shape[0])
-    ax2.set_ylim(0, 5)
+    ax2.set_ylim(-1, 1)
     ax2.grid(True)
     ax2.legend()
 
     # Save and close
-    final_plot_path = os.path.splitext(video_path)[0] + "_rig_final.jpg"
+    final_plot_path = os.path.splitext(video_path)[0] + "_rig_final_norm.jpg"
     plt.tight_layout()
     plt.savefig(final_plot_path, dpi=200)
     plt.close()
@@ -188,11 +209,12 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps=100,
 if __name__ == "__main__":
     # Load dataset
     dataset = CustomDataset(
-        csv_file=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset\cone_path_drive_rig\modular_cone_rig_data.csv",
+        csv_file=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset\cone_path_drive_rig\mod_output_cone_rig.csv",
         base_dir = r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\training_dataset\cone_path_drive_rig",
         image_transform=torchvision.transforms.Compose([
-            torchvision.transforms.Lambda(lambda img: torchvision.transforms.functional.crop(img, top=288, left=0, height=192, width=640)),
+            #torchvision.transforms.Lambda(lambda img: torchvision.transforms.functional.crop(img, top=288, left=0, height=192, width=640)),
             torchvision.transforms.Resize((96, 96)),
+            torchvision.transforms.Lambda(hsv_threshold_pil),
             torchvision.transforms.ToTensor(),
             torchvision.transforms.Normalize([0.5]*3, [0.5]*3),
         ]),
@@ -201,10 +223,10 @@ if __name__ == "__main__":
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=64, shuffle=True)
 
     # Load models
-    vision_encoder, noise_pred_net = load_model(r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\policies\cone_rig.pth")
+    vision_encoder, noise_pred_net = load_model(r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\policies\cone_rig_norm.pth")
 
     # Run validation
     validate(dataloader, vision_encoder, noise_pred_net,
              num_steps=100,
-             video_path=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\videos\outputVideos\rig_wheel_vel.mp4",
-             image_path=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\videos\outputVideos\rig_input_image.png")
+             video_path=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\videos\outputVideos\rig_wheel_vel_norm.mp4",
+             image_path=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\videos\outputVideos\rig_input_image_norm.png")
