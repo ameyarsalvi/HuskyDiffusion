@@ -52,7 +52,6 @@ DDPMScheduler : Provides the relation between nth timestep and the amount of noi
 to be added to the image/action/label at that time step. The noise value thus becomes our "truth"
 over which optimization happens
 '''
-#diffusion_scheduler = DDPMScheduler(num_train_timesteps=100)
 
 diffusion_scheduler = DDPMScheduler(
     num_train_timesteps=args['train_params_schedule_config_steps'],
@@ -75,7 +74,7 @@ def save_checkpoint(epoch, model, ema_model, optimizer, save_dir=SAVE_DIR):
 
 save_policy_path = args['path_save_policy']
 os.makedirs(save_policy_path, exist_ok=True)
-def save_final_model(model, ema_model, vision_encoder, save_path= os.path.join(save_policy_path, "cone_rig_norm.pth")):
+def save_final_model(model, ema_model, vision_encoder, save_path= os.path.join(save_policy_path, args['policy_name'])):
     torch.save({
         'model_state_dict': model.state_dict(),
         'ema_model_state_dict': ema_model.state_dict(),
@@ -114,7 +113,6 @@ def train():
 
     '''
     dataset = CustomDataset(
-        #csv_file=r"C:\Users\asalvi\Documents\Ameya_workspace\DiffusionDataset\ConeCamAngEst\csv_files\TSyn_data_filtered.csv",
         csv_file=args['path_dataset_csv'],
         base_dir = args['path_dataset'],
         image_transform=transforms.Compose([
@@ -224,9 +222,6 @@ def train():
             # Compute loss
             noise_loss = nn.MSELoss()(pred_noise.squeeze(1), noise)  # ✅ Ensure same shape
 
-            #with torch.no_grad():
-            #    denoised_actions = diffusion_scheduler.step(pred_noise, timestep, noisy_actions).prev_sample
-
             denoised_actions = []
             for i in range(noisy_actions.shape[0]):
                 result = diffusion_scheduler.step(
@@ -265,7 +260,6 @@ def train():
     # Close TensorBoard writer after training completes
     writer.close()
     save_final_model(noise_pred_net, ema, vision_encoder)
-
 
 
 if __name__ == "__main__":
