@@ -44,7 +44,7 @@ sys.path.insert(0,args['path_system_path'])
 
 ### Import Diffusion Modules
 from modules.resnet import get_resnet18
-from modules.datasetv4 import CustomDataset
+from modules.datasetv5 import CustomDataset
 from modules.unet2 import ConditionalUnet1D  # Import Conv1D module
 
 '''
@@ -189,6 +189,7 @@ def train():
             imu_omg = batch['imu_omg'].to(device).float()  # (64, 25)
             wheel_L = batch['wheel_L'].to(device).float()  # (64, 25)
             wheel_R = batch['wheel_R'].to(device).float()  # (64, 25)
+            ref_velocity = batch['ref_velocity'].to(device).float()  # (64, 25)
             actions = batch["actions"].to(device).float() # (64, 100, 2)
 
             ### Encode Image features 
@@ -202,9 +203,10 @@ def train():
             imu_omg = imu_omg.unsqueeze(-1)  # [B, T, 1]
             wheel_L = wheel_L.unsqueeze(-1)      # [B, T, 1]
             wheel_R = wheel_R.unsqueeze(-1)  # [B, T, 1]
+            ref_velocity = ref_velocity.unsqueeze(-1)
 
-            global_cond = torch.cat([image_features, imu_v, imu_omg, wheel_L, wheel_R], dim=-1)  # [B, T, F+4]
-            global_cond = global_cond.flatten(start_dim=1).to(dtype=torch.float32, device = device)  # [B, T*(F+4)]
+            global_cond = torch.cat([image_features, imu_v, imu_omg, wheel_L, wheel_R, ref_velocity], dim=-1)  # [B, T, F+5]
+            global_cond = global_cond.flatten(start_dim=1).to(dtype=torch.float32, device = device)  # [B, T*(F+5)]
 
             local_cond = None
 
