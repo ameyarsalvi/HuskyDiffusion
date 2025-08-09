@@ -1,7 +1,7 @@
 # HuskyDiffusion
 Diffusion based robot navigation for Skid-steered robots
 
-Director Structrue
+Directory Structrue (updated 8/9/2025)
 
 ```
 ├───modules (Contains necessary modules to run the training)
@@ -10,8 +10,8 @@ Director Structrue
 │   │   dataset.py
 │   │   pose_embedding.py
 │   │   resnet.py
-│   │   unet.py
-│   │   unet2.py
+│   │   unetX.py
+│   │   datasetvX.py
 │
 ├───UnitTesting
 │   │   test_conv1d.py
@@ -29,14 +29,25 @@ Director Structrue
 │   │       understandDatasetLoader.ipynb
 │   │       understandResidual1D.ipynb
 │   │       understandUNet1D.ipynb
-│ 
-│
-└───velDiff
-    │   train_v1.py (primary training script)
-    │   validate_v1.py (primary valiation script)
-    │
-    ├───checkpointsV1
-    └───runs 
+|
+├───velDiff
+|    │   train_vX.py (primary training script)
+|    │   validate_vX.py (primary valiation script)
+|    ├───conf
+|    |      |   config.yaml
+|    ├───checkpointsV1
+|    └───runs (try to empty unless necessary)
+|
+├───dataset_utils
+|    │   cmd_vel_heatmap.py
+|    |   merge_csvs.py
+|    |   mod_dataset.py
+|    |   move_images.py
+|
+└───plot_utils
+    |   validate_plot_viz.py
+    |   viz_preds.py
+    |   viz_spline.py
 
     ```
 
