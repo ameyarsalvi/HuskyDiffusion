@@ -1,0 +1,32 @@
+{
+    "args" : [
+        {
+            "path_system_path" : "C:/Users/asalvi/Documents/Ameya_workspace/DiffusionDataset/ConeCamAngEst/training/",
+            "path_saved_policy" : "C:/Users/asalvi/Documents/Ameya_workspace/DiffusionDataset/ConeCamAngEst/policies/",
+            "path_dataset" : "C:/Users/asalvi/Documents/Ameya_workspace/DiffusionDataset/training_dataset/cone_path_drive_rig/",
+            "path_dataset_csv" : "C:/Users/asalvi/Documents/Ameya_workspace/DiffusionDataset/training_dataset/cone_path_drive_rig/mod_output_cone_rig.csv",
+            "train_config_input_dim" : 2,
+            "train_config_local_cond_dim" : 16,
+            "train_config_global_cond_dim" : 1034,
+            "train_config_diffusion_step_embed_dim" : 256,
+            "train_config_down_dims" : [128, 256, 512],
+            "train_config_kernel_size" : 3,
+            "train_config_n_groups" : 8,
+            "train_config_data_batch_size" : 32,
+            "train_params_schedule_config_steps" : 100,
+            "train_params_schedule_config_scheduler" : "squaredcos_cap_v2",
+            "train_params_optimizer_lr" : 1e-5,
+            "train_params_optimizer_weight_decay" : 1e-2,
+            "train_params_optimizer_lr_schedule_step" : 5,
+            "train_params_optimizer_lr_schedule_gamma" : 0.5,
+            "train_epochs" : 100,
+            "policy_name" : "beh_clone.pth",
+            "save_traj_video_as" : "denoising_trajectory_bc.mp4",
+            "save_traj_plot_as" : "rig_final_norm_bc.jpg",
+            "save_input_img_as" : "input_image_bc.png",
+            "save_vid_img_dir" : "C:/Users/asalvi/Documents/Ameya_workspace/DiffusionDataset/ConeCamAngEst/videos/outputVideos"
+            
+        }
+    ]
+}
+
