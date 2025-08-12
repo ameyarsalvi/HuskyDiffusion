@@ -10,12 +10,13 @@ class CustomDataset(Dataset):
     def __init__(self, csv_file, base_dir, image_transform=None, input_seq=25, output_seq=100):
         super().__init__()
         self.raw_data = pd.read_csv(csv_file)
-        self.data = self.raw_data.iloc[::5].reset_index(drop=True)  # Step 1: Subsample every 5th row
-        self.data = self.raw_data  
+        self.data = self.raw_data.iloc[::9].reset_index(drop=True)  # Step 1: Subsample every 5th row
+        #self.data = self.raw_data  
         self.image_transform = image_transform
         self.input_seq = input_seq
         self.output_seq = output_seq
         self.base_dir = base_dir
+        self.throttle = 9
 
     def __len__(self):
         return len(self.data) - (self.input_seq + self.output_seq)
