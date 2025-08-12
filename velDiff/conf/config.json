@@ -22,7 +22,7 @@
             "train_params_optimizer_lr_schedule_step" : 5,
             "train_params_optimizer_lr_schedule_gamma" : 0.5,
             "train_epochs" : 100,
-            "policy_name" : "beh_clone.pth"
+            "policy_name" : "beh_clone2.pth"
             
         }
     ]

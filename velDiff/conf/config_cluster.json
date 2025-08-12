@@ -1,0 +1,30 @@
+{
+    "args" : [
+        {
+            "path_system_path" : "/scratch/asalvi/Diffusion/",
+            "path_tensorlogs" : "/project/vkrovi/deeprl/Diffusion/TrainLogs/runs/",
+            "path_save_checkpoints" : "/project/vkrovi/deeprl/Diffusion/TrainLogs/checkpointsV4/",
+            "path_save_policy" : "/project/vkrovi/deeprl/Diffusion/TrainLogs/policies/",
+            "path_dataset" : "/project/vkrovi/deeprl/Diffusion/cone_path_drive_rig/",
+            "path_dataset_csv" : "/project/vkrovi/deeprl/Diffusion/cone_path_drive_rig/mod_output_cone_rig.csv",
+            "train_config_input_dim" : 2,
+            "train_config_local_cond_dim" : 8,
+            "train_config_global_cond_dim" : 1034,
+            "train_config_diffusion_step_embed_dim" : 256,
+            "train_config_down_dims" : [128, 256, 512],
+            "train_config_kernel_size" : 3,
+            "train_config_n_groups" : 8,
+            "train_config_data_batch_size" : 32,
+            "train_params_schedule_config_steps" : 100,
+            "train_params_schedule_config_scheduler" : "squaredcos_cap_v2",
+            "train_params_optimizer_lr" : 1e-5,
+            "train_params_optimizer_weight_decay" : 1e-2,
+            "train_params_optimizer_lr_schedule_step" : 5,
+            "train_params_optimizer_lr_schedule_gamma" : 0.5,
+            "train_epochs" : 250,
+            "policy_name" : "beh_clone.pth"
+            
+        }
+    ]
+}
+

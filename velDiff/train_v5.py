@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 ###### Extract var arguments from json ##########
 import json
 
-with open("conf/config.json","r") as f:
+with open("conf/config_cluster.json","r") as f:
     config = json.load(f)
 
 args = config["args"][0]
@@ -126,6 +126,7 @@ def train():
 
     
     #Visualize some images from the dataset
+    '''
     print("Visualizing some images from the dataset:")
     for i in range(2):  # Choose a few samples
         sample = dataset[i]
@@ -139,6 +140,7 @@ def train():
             plt.title(f"Sample {i}, Timestep {t}")
             plt.axis('off')
             plt.show()
+    '''
     
 
     dataloader = DataLoader(dataset, batch_size=args['train_config_data_batch_size'], shuffle=True)
