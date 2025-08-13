@@ -231,7 +231,7 @@ if __name__ == "__main__":
             torchvision.transforms.ToTensor(),
             torchvision.transforms.Normalize([0.5]*3, [0.5]*3),
         ]),
-        input_seq=2, output_seq=16
+        input_seq=args['input_seq_len'], output_seq=args['output_seq_len']
     )
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=args['train_config_data_batch_size'], shuffle=True)
 

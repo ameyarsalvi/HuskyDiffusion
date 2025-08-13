@@ -20,14 +20,23 @@ import numpy as np
 import math
 import os
 import matplotlib.pyplot as plt
+import argparse
+
+cmd_parser = argparse.ArgumentParser(description="Command line options")
+cmd_parser.add_argument('--train_on', type=str, required=True, help='Train on Desktop or Cluster')
+cmd_args = cmd_parser.parse_args()
 
 #============= Parse Arguments ==================
 
 ###### Extract var arguments from json ##########
 import json
 
-with open("conf/config_cluster.json","r") as f:
-    config = json.load(f)
+if cmd_args.train_on == 'desktop':
+    with open("conf/config.json","r") as f:
+        config = json.load(f)
+else:
+    with open("conf/config_cluster.json","r") as f:
+        config = json.load(f)
 
 args = config["args"][0]
 
@@ -121,7 +130,7 @@ def train():
             transforms.ToTensor(),
             transforms.Normalize([0.5]*3, [0.5]*3)
         ]),
-        input_seq=2, output_seq=16
+        input_seq=args['input_seq_len'], output_seq=args['output_seq_len']
     )
 
     
