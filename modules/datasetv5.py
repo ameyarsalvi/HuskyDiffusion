@@ -20,7 +20,10 @@ class CustomDataset(Dataset):
 
     def __len__(self):
         #return len(self.data) - (self.input_seq + self.output_seq)
-        return len(self.input_data) - self.input_seq
+        #return len(self.input_data) - self.input_seq
+        max_raw_index = len(self.raw_data)
+        max_idx = ((max_raw_index - self.output_seq - 1) // self.throttle) - (self.input_seq - 1)
+        return max(0, max_idx)
 
     def __getitem__(self, idx):
         input_rows = self.input_data.iloc[idx : idx + self.input_seq]
