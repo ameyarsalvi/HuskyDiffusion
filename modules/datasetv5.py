@@ -9,21 +9,24 @@ import os
 class CustomDataset(Dataset):
     def __init__(self, csv_file, base_dir, image_transform=None, input_seq=25, output_seq=100):
         super().__init__()
-        self.raw_data = pd.read_csv(csv_file)
-        self.data = self.raw_data.iloc[::9].reset_index(drop=True)  # Step 1: Subsample every 5th row
-        #self.data = self.raw_data  
+        self.raw_data = pd.read_csv(csv_file) 
         self.image_transform = image_transform
         self.input_seq = input_seq
         self.output_seq = output_seq
         self.base_dir = base_dir
         self.throttle = 9
+        self.input_data = self.raw_data.iloc[::self.throttle].reset_index(drop=True)
+
 
     def __len__(self):
-        return len(self.data) - (self.input_seq + self.output_seq)
+        #return len(self.data) - (self.input_seq + self.output_seq)
+        return len(self.input_data) - self.input_seq
 
     def __getitem__(self, idx):
-        input_rows = self.data.iloc[idx : idx + self.input_seq]
-        output_rows = self.data.iloc[idx + self.input_seq : idx + self.input_seq + self.output_seq]
+        input_rows = self.input_data.iloc[idx : idx + self.input_seq]
+        #output_rows = self.data.iloc[idx + self.input_seq : idx + self.input_seq + self.output_seq]
+        last_input_raw_idx = (idx + self.input_seq - 1) * self.throttle
+        output_rows = self.raw_data.iloc[last_input_raw_idx + 1 : last_input_raw_idx + 1 + self.output_seq]
 
         # Image & IMU input sequence
         image_paths = input_rows['image'].tolist()
