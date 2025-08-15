@@ -24,7 +24,7 @@
             "train_params_optimizer_weight_decay" : 1e-2,
             "train_params_optimizer_lr_schedule_step" : 5,
             "train_params_optimizer_lr_schedule_gamma" : 0.5,
-            "train_epochs" : 1000,
+            "train_epochs" : 3000,
             "policy_name" : "beh_clone.pth"
             
         }
