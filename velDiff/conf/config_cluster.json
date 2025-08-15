@@ -7,6 +7,7 @@
             "path_save_policy" : "/project/vkrovi/deeprl/Diffusion/TrainLogs/policies/",
             "path_dataset" : "/project/vkrovi/deeprl/Diffusion/cone_path_drive_rig/",
             "path_dataset_csv" : "/project/vkrovi/deeprl/Diffusion/cone_path_drive_rig/mod_output_cone_rig.csv",
+            "VE_fcLayer" : 512,
             "input_seq_len" : 2,
             "output_seq_len" : 32,
             "train_config_input_dim" : 2,

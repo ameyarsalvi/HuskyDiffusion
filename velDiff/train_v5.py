@@ -154,7 +154,7 @@ def train():
 
     dataloader = DataLoader(dataset, batch_size=args['train_config_data_batch_size'], shuffle=True)
 
-    vision_encoder = get_resnet18().to(device)
+    vision_encoder = get_resnet18(fc_layer=args['VE_fcLayer']).to(device)
     #for param in vision_encoder.parameters():
     #    param.requires_grad = False
 
@@ -172,8 +172,7 @@ def train():
     noise_pred_net = ConditionalUnet1D(
         input_dim=args['train_config_input_dim'],
         local_cond_dim=args['train_config_local_cond_dim'],
-        #global_cond_dim= args['train_config_global_cond_dim'], #2*(512+1+1+1+1)
-        global_cond_dim = 2*(512 + (len(args['conditions'])-1)),
+        global_cond_dim = args['input_seq_len']*(args['VE_fcLayer'] + (len(args['conditions'])-1)),
         diffusion_step_embed_dim=args['train_config_diffusion_step_embed_dim'],
         down_dims=args['train_config_down_dims'],
         kernel_size=args['train_config_kernel_size'],
