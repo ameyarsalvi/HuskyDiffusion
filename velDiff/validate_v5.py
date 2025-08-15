@@ -14,6 +14,8 @@ import os
 
 import cv2
 from PIL import Image
+from mpl_toolkits.mplot3d import Axes3D  # registers 3D projection
+
 
 #============= Parse Arguments ==================
 
@@ -132,13 +134,13 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps,
     
     # Plot setup
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
-    ax1.set_title("Left Wheel Velocity (w_L) rad/s over Sequence")
+    ax1.set_title("Linear Velocity (V) m/s over Sequence")
     ax1.set_xlabel("Timestep")
-    ax1.set_ylabel("ω (rad/s)")
+    ax1.set_ylabel("V (m/s)")
     ax1.set_xlim(0, true_velocities.shape[0])
     ax1.set_ylim(-1, 1)
 
-    ax2.set_title("Right Wheel Velocity (w_R) rad/s over Sequence")
+    ax2.set_title("Angular Velocity (ω) rad/s over Sequence")
     ax2.set_xlabel("Timestep")
     ax2.set_ylabel("ω (rad/s)")
     ax2.set_xlim(0, true_velocities.shape[0])
@@ -155,9 +157,34 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps,
     ax1.legend()
     ax2.legend()
 
+
+    # --- 3D setup (animation) ---
+    fig3d = plt.figure(figsize=(8, 8))
+    ax3d = fig3d.add_subplot(111, projection='3d')
+    ax3d.set_title("ω–V–Time (Denoising)")
+    ax3d.set_xlabel("ω (rad/s)")   # x = ω
+    ax3d.set_ylabel("V (m/s)")     # y = V
+    ax3d.set_zlabel("timestep")    # z = t
+    ax3d.set_xlim(-1, 1)
+    ax3d.set_ylim(-1, 1)
+    ax3d.set_zlim(0, int(timesteps[-1]))
+    ax3d.view_init(elev=25, azim=45)
+
+    # NOTE the swapped columns: x=ω -> [:, 1], y=V -> [:, 0]
+    ax3d.plot(true_velocities[:, 1], true_velocities[:, 0], timesteps, "g-", label="True")
+    noisy3d_line,    = ax3d.plot([], [], [], "r--", label="Noisy")
+    denoised3d_line, = ax3d.plot([], [], [], "b-",  label="Denoised")
+    ax3d.legend()
+
+    video_path_3d = video_path.replace(".mp4", "_3d.mp4")
+    writer3d = FFMpegWriter(fps=5, metadata=dict(title="Denoising Velocities (3D)"))
+
+
+
     def update(step):
         nonlocal denoised_velocities
-        t = torch.full((1,), diffusion_scheduler.config.num_train_timesteps - step - 1, dtype=torch.long, device=device)
+        t = torch.full((1,), diffusion_scheduler.config.num_train_timesteps - step - 1,
+                    dtype=torch.long, device=device)
         with torch.no_grad():
             pred = noise_pred_net(denoised_velocities, t, None, global_cond)
             denoised_velocities = diffusion_scheduler.step(pred, t, denoised_velocities).prev_sample
@@ -165,21 +192,35 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps,
         noisy_np = noisy_velocities.view(-1, 2).cpu().numpy()
         denoised_np = denoised_velocities.view(-1, 2).detach().cpu().numpy()
 
+        # 2D updates (unchanged)
         noisy_v_plot.set_data(timesteps, noisy_np[:, 0])
         denoised_v_plot.set_data(timesteps, denoised_np[:, 0])
         noisy_omg_plot.set_data(timesteps, noisy_np[:, 1])
         denoised_omg_plot.set_data(timesteps, denoised_np[:, 1])
 
+        # 3D updates (SWAPPED: x=ω -> [:,1], y=V -> [:,0], z=t)
+        noisy3d_line.set_data(noisy_np[:, 1], noisy_np[:, 0])
+        noisy3d_line.set_3d_properties(timesteps)
+        denoised3d_line.set_data(denoised_np[:, 1], denoised_np[:, 0])
+        denoised3d_line.set_3d_properties(timesteps)
+
         return denoised_v_plot, noisy_v_plot, denoised_omg_plot, noisy_omg_plot
 
-    writer = FFMpegWriter(fps=5, metadata=dict(title="Denoising Velocities"))
-    with writer.saving(fig, video_path, dpi=100):
-        for step in tqdm(range(num_steps)):
-            update(step)
-            writer.grab_frame()
 
-    plt.close(fig)
-    print(f"Saved video at {video_path}")
+    writer = FFMpegWriter(fps=5, metadata=dict(title="Denoising Velocities"))
+
+    #Comment Video Writer
+    
+    with writer.saving(fig, video_path, dpi=100):
+        with writer3d.saving(fig3d, video_path_3d, dpi=100):
+            for step in tqdm(range(num_steps)):
+                update(step)
+                writer.grab_frame()     # 2D frame
+                writer3d.grab_frame()   # 3D frame
+
+    plt.close(fig3d)
+    print(f"Saved 3D video at {video_path_3d}")
+    
 
     # Extract final denoised velocities as numpy
     final_denoised_np = denoised_velocities.view(-1, 2).detach().cpu().numpy()
@@ -216,6 +257,37 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps,
     plt.savefig(final_plot_path, dpi=200)
     plt.close()
     print(f"Saved final V/ω comparison plot at {final_plot_path}")
+
+    # --- 3D static plot (final) ---
+    noisy_np_final = noisy_velocities.view(-1, 2).cpu().numpy()
+
+    fig3d_static = plt.figure(figsize=(8, 8))
+    ax3s = fig3d_static.add_subplot(111, projection='3d')
+    ax3s.set_title("ω–V–Time (Final)")
+    ax3s.set_xlabel("ω (rad/s)")  # x = ω
+    ax3s.set_ylabel("V (m/s)")    # y = V
+    ax3s.set_zlabel("timestep")   # z = t
+
+    ax3s.set_xlim(-1, 1)
+    ax3s.set_ylim(-1, 1)
+    ax3s.set_zlim(0, int(timesteps[-1]))
+    ax3s.view_init(elev=25, azim=45)
+
+    # SWAP order in plot calls: (x=ω, y=V, z=t)
+    ax3s.plot(noisy_np_final[:, 1],    noisy_np_final[:, 0],    timesteps, "r--", label="Noisy")
+    ax3s.plot(final_denoised_np[:, 1], final_denoised_np[:, 0], timesteps, "b-",  label="Denoised")
+    ax3s.plot(true_velocities[:, 1],   true_velocities[:, 0],   timesteps, "g-",  label="True")
+
+
+    ax3s.legend()
+
+    plot_path_3d = plot_path.replace(".png", "_3d.png")
+    plt.tight_layout()
+    plt.savefig(plot_path_3d, dpi=200)
+    plt.close(fig3d_static)
+    print(f"Saved final 3D ω–V–Time plot at {plot_path_3d}")
+
+
 
 
 

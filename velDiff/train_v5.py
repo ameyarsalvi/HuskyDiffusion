@@ -172,7 +172,8 @@ def train():
     noise_pred_net = ConditionalUnet1D(
         input_dim=args['train_config_input_dim'],
         local_cond_dim=args['train_config_local_cond_dim'],
-        global_cond_dim= args['train_config_global_cond_dim'], #2*(512+1+1+1+1)
+        #global_cond_dim= args['train_config_global_cond_dim'], #2*(512+1+1+1+1)
+        global_cond_dim = 2*(512 + (len(args['conditions'])-1)),
         diffusion_step_embed_dim=args['train_config_diffusion_step_embed_dim'],
         down_dims=args['train_config_down_dims'],
         kernel_size=args['train_config_kernel_size'],
@@ -193,13 +194,7 @@ def train():
         
         for step, batch in enumerate(tqdm(dataloader, desc=f"Epoch {epoch+1}/{num_epochs}")):
             ### Sample data from dataloader (batchsize x data_dims)
-            images = batch["images"].to(device)    # (64, 25, 3, 96, 96)
-            imu_v = batch['imu_v'].to(device).float()      # (64, 25)
-            imu_omg = batch['imu_omg'].to(device).float()  # (64, 25)
-            wheel_L = batch['wheel_L'].to(device).float()  # (64, 25)
-            wheel_R = batch['wheel_R'].to(device).float()  # (64, 25)
-            ref_velocity = batch['ref_velocity'].to(device).float()  # (64, 25)
-            actions = batch["actions"].to(device).float() # (64, 100, 2)
+            images = batch[args['conditions'][0]].to(device)    # (64, 25, 3, 96, 96)
 
             ### Encode Image features 
             B, T, C, H, W = images.shape  # [64, 25, 3, 96, 96]
@@ -207,14 +202,16 @@ def train():
             image_features = vision_encoder(images)
             image_features = image_features.view(B, T, -1)
 
+            cond = []
+            cond_tensor = []
+            for i in range(1,len(args['conditions'])):
+                cond = batch[args['conditions'][i]].to(device).float()
+                cond = cond.unsqueeze(-1)
+                cond_tensor.append(cond)
 
-            imu_v = imu_v.unsqueeze(-1)      # [B, T, 1]
-            imu_omg = imu_omg.unsqueeze(-1)  # [B, T, 1]
-            wheel_L = wheel_L.unsqueeze(-1)      # [B, T, 1]
-            wheel_R = wheel_R.unsqueeze(-1)  # [B, T, 1]
-            ref_velocity = ref_velocity.unsqueeze(-1)
+            actions = batch["actions"].to(device).float() # (64, 100, 2)
 
-            global_cond = torch.cat([image_features, imu_v, imu_omg, wheel_L, wheel_R, ref_velocity], dim=-1)  # [B, T, F+5]
+            global_cond = torch.cat([image_features] + cond_tensor, dim=-1)  # [B, T, F+5]
             global_cond = global_cond.flatten(start_dim=1).to(dtype=torch.float32, device = device)  # [B, T*(F+5)]
 
             local_cond = None

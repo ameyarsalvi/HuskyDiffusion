@@ -13,6 +13,7 @@
             "train_config_local_cond_dim" : 16,
             "train_config_global_cond_dim" : 1034,
             "train_config_diffusion_step_embed_dim" : 256,
+            "conditions" : ["images","imu_v","imu_omg","wheel_L","wheel_R","ref_velocity"],
             "train_config_down_dims" : [128, 256, 512],
             "train_config_kernel_size" : 3,
             "train_config_n_groups" : 8,

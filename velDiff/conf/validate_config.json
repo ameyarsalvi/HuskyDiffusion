@@ -6,7 +6,7 @@
             "path_dataset" : "C:/Users/asalvi/Documents/Ameya_workspace/DiffusionDataset/training_dataset/cone_path_drive_rig/",
             "path_dataset_csv" : "C:/Users/asalvi/Documents/Ameya_workspace/DiffusionDataset/training_dataset/cone_path_drive_rig/mod_output_cone_rig.csv",
             "input_seq_len" : 2,
-            "output_seq_len" : 16,
+            "output_seq_len" : 32,
             "train_config_input_dim" : 2,
             "train_config_local_cond_dim" : 8,
             "train_config_global_cond_dim" : 1034,
