@@ -48,7 +48,7 @@ def load_model(checkpoint_path=args['policy_name']):
     noise_pred_net = ConditionalUnet1D(
         input_dim=args['train_config_input_dim'],
         local_cond_dim=args['train_config_local_cond_dim'],
-        global_cond_dim= args['train_config_global_cond_dim'], #2*(512+1+1+1+1)
+        global_cond_dim = args['input_seq_len']*(args['VE_fcLayer'] + (len(args['conditions'])-1)),
         diffusion_step_embed_dim=args['train_config_diffusion_step_embed_dim'],
         down_dims=args['train_config_down_dims'],
         kernel_size=args['train_config_kernel_size'],
@@ -91,16 +91,10 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps,
     beta_schedule=args['train_params_schedule_config_scheduler']
 )
     batch = next(iter(dataloader))
-    idx = np.random.randint(0, batch["images"].shape[0])
+    idx = np.random.randint(0, batch[args['conditions'][0]].shape[0])
 
     # Get sample
-    images = batch["images"][idx].unsqueeze(0).to(device)  # [1, 25, 3, 96, 96]
-    imu_v = batch['imu_v'][idx].unsqueeze(0).to(device).float()      # (64, 25)
-    imu_omg = batch['imu_omg'][idx].unsqueeze(0).to(device).float()  # (64, 25)
-    wheel_L = batch['wheel_L'][idx].unsqueeze(0).to(device).float()  # (64, 25)
-    wheel_R = batch['wheel_R'][idx].unsqueeze(0).to(device).float()  # (64, 25)
-    ref_velocity = batch['ref_velocity'][idx].unsqueeze(0).to(device).float()  # (64, 25)
-    true_velocities = batch["actions"][idx].cpu().numpy()  # [100, 2]
+    images = batch[args['conditions'][0]][idx].unsqueeze(0).to(device)    # (64, 25, 3, 96, 96)
 
     # Save input image (first frame)
     image_first = to_pil_image(images[0, 0].cpu() * 0.5 + 0.5)
@@ -114,16 +108,17 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps,
         img_feats = vision_encoder(images_reshaped)  # [B*T, F]
         img_feats = img_feats.view(B, T, -1)         # [B, T, F]
 
-    imu_v = imu_v.unsqueeze(-1)      # [B, T, 1]
-    imu_omg = imu_omg.unsqueeze(-1)  # [B, T, 1]
-    wheel_L = wheel_L.unsqueeze(-1)      # [B, T, 1]
-    wheel_R = wheel_R.unsqueeze(-1)  # [B, T, 1]
-    ref_velocity = ref_velocity.unsqueeze(-1)
+    cond = []
+    cond_tensor = []
+    for i in range(1,len(args['conditions'])):
+        cond = batch[args['conditions'][i]][idx].unsqueeze(0).to(device).float()
+        cond = cond.unsqueeze(-1)
+        cond_tensor.append(cond)
 
-    #print(f"shape for wheel_L is{wheel_L.size()}")
-    #print(f"shape for ref_velocity is{ref_velocity.size()}")
-    
-    global_cond = torch.cat([img_feats, imu_v, imu_omg, wheel_L, wheel_R, ref_velocity], dim=-1).flatten(start_dim=1)
+    true_velocities = batch["actions"][idx].cpu().numpy()  # [100, 2]
+
+    global_cond = torch.cat([img_feats] + cond_tensor, dim=-1).flatten(start_dim=1)  # [B, T, F+5]
+
 
     # Initialize noisy trajectory
     timestep = torch.full((1,), diffusion_scheduler.num_train_timesteps - 1, dtype=torch.long, device=device)
