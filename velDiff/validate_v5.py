@@ -44,7 +44,7 @@ from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 # Load model
 def load_model(checkpoint_path=args['policy_name']):
     # Define architecture
-    vision_encoder = get_resnet18().to(device)
+    vision_encoder = get_resnet18(fc_layer=args['VE_fcLayer']).to(device)
     noise_pred_net = ConditionalUnet1D(
         input_dim=args['train_config_input_dim'],
         local_cond_dim=args['train_config_local_cond_dim'],
