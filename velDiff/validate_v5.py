@@ -152,7 +152,7 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps,
     ax1.legend()
     ax2.legend()
 
-
+    '''
     # --- 3D setup (animation) ---
     fig3d = plt.figure(figsize=(8, 8))
     ax3d = fig3d.add_subplot(111, projection='3d')
@@ -170,9 +170,10 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps,
     noisy3d_line,    = ax3d.plot([], [], [], "r--", label="Noisy")
     denoised3d_line, = ax3d.plot([], [], [], "b-",  label="Denoised")
     ax3d.legend()
+    '''
 
-    video_path_3d = video_path.replace(".mp4", "_3d.mp4")
-    writer3d = FFMpegWriter(fps=5, metadata=dict(title="Denoising Velocities (3D)"))
+    #video_path_3d = video_path.replace(".mp4", "_3d.mp4")
+    #writer3d = FFMpegWriter(fps=5, metadata=dict(title="Denoising Velocities (3D)"))
 
 
 
@@ -193,11 +194,13 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps,
         noisy_omg_plot.set_data(timesteps, noisy_np[:, 1])
         denoised_omg_plot.set_data(timesteps, denoised_np[:, 1])
 
+        '''
         # 3D updates (SWAPPED: x=ω -> [:,1], y=V -> [:,0], z=t)
         noisy3d_line.set_data(noisy_np[:, 1], noisy_np[:, 0])
         noisy3d_line.set_3d_properties(timesteps)
         denoised3d_line.set_data(denoised_np[:, 1], denoised_np[:, 0])
         denoised3d_line.set_3d_properties(timesteps)
+        '''
 
         return denoised_v_plot, noisy_v_plot, denoised_omg_plot, noisy_omg_plot
 
@@ -207,17 +210,17 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps,
     #Comment Video Writer
     
     with writer.saving(fig, video_path, dpi=100):
-        with writer3d.saving(fig3d, video_path_3d, dpi=100):
+        #with writer3d.saving(fig3d, video_path_3d, dpi=100):
             for step in tqdm(range(num_steps)):
                 update(step)
                 writer.grab_frame()     # 2D frame
-                writer3d.grab_frame()   # 3D frame
+        #        writer3d.grab_frame()   # 3D frame
 
-    plt.close(fig3d)
-    print(f"Saved 3D video at {video_path_3d}")
+    #plt.close(fig3d)
+    #print(f"Saved 3D video at {video_path_3d}")
     
 
-    # Extract final denoised velocities as numpy
+    # Extract final denoised velocities as numpy (Final 2-D Path)
     final_denoised_np = denoised_velocities.view(-1, 2).detach().cpu().numpy()
     timesteps = np.arange(true_velocities.shape[0])
 
@@ -253,6 +256,7 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps,
     plt.close()
     print(f"Saved final V/ω comparison plot at {final_plot_path}")
 
+    '''
     # --- 3D static plot (final) ---
     noisy_np_final = noisy_velocities.view(-1, 2).cpu().numpy()
 
@@ -281,8 +285,7 @@ def validate(dataloader, vision_encoder, noise_pred_net, num_steps,
     plt.savefig(plot_path_3d, dpi=200)
     plt.close(fig3d_static)
     print(f"Saved final 3D ω–V–Time plot at {plot_path_3d}")
-
-
+    '''
 
 
 

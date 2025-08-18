@@ -8,8 +8,8 @@
             "path_dataset" : "/project/vkrovi/deeprl/Diffusion/cone_path_drive_rig/",
             "path_dataset_csv" : "/project/vkrovi/deeprl/Diffusion/cone_path_drive_rig/mod_output_cone_rig.csv",
             "VE_fcLayer" : 64,
-            "input_seq_len" : 1,
-            "output_seq_len" : 32,
+            "input_seq_len" : 3,
+            "output_seq_len" : 24,
             "train_config_input_dim" : 2,
             "train_config_local_cond_dim" : 8,
             "conditions" : ["images","imu_v","imu_omg","wheel_L","wheel_R"],
@@ -17,14 +17,14 @@
             "train_config_down_dims" : [128, 256, 512],
             "train_config_kernel_size" : 3,
             "train_config_n_groups" : 8,
-            "train_config_data_batch_size" : 64,
-            "train_params_schedule_config_steps" : 1000,
+            "train_config_data_batch_size" : 32,
+            "train_params_schedule_config_steps" : 500,
             "train_params_schedule_config_scheduler" : "squaredcos_cap_v2",
             "train_params_optimizer_lr" : 1e-5,
             "train_params_optimizer_weight_decay" : 1e-2,
             "train_params_optimizer_lr_schedule_step" : 5,
             "train_params_optimizer_lr_schedule_gamma" : 0.5,
-            "train_epochs" : 3000,
+            "train_epochs" : 1000,
             "policy_name" : "beh_clone.pth"
             
         }
