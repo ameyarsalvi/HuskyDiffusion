@@ -14,7 +14,7 @@ class CustomDataset(Dataset):
         self.input_seq = input_seq
         self.output_seq = output_seq
         self.base_dir = base_dir
-        self.throttle = 9
+        self.throttle = 1
         self.input_data = self.raw_data.iloc[::self.throttle].reset_index(drop=True)
 
 
